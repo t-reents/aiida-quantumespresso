@@ -117,7 +117,7 @@ def validate_inputs(value, _):
     if value.get('fermi_energy_range', False):
         for par in ['Emin', 'Emax']:
             if value['dos']['parameters']['DOS'].get(par, None):
-                return (
+                warnings.warn(
                     f'The `{par}`` parameter and fermi_energy_range were specified.'
                     'The value in fermi_energy_range will be used.'
                 )
@@ -479,13 +479,13 @@ class PdosWorkChain(ProtocolMixin, WorkChain):
         fermi_energy_range = self.inputs.fermi_energy_range
 
         if fermi_energy_range:
-            projwfc_parameters['DOS']['Emin'] = fermi_energy_range[0] + self.ctx.nscf_fermi
-            projwfc_parameters['DOS']['Emax'] = fermi_energy_range[1] + self.ctx.nscf_fermi
-        elif 'Emin' in projwfc_parameters['DOS'] and 'Emax' in projwfc_parameters['DOS']:
+            projwfc_parameters['PROJWFC']['Emin'] = fermi_energy_range[0] + self.ctx.nscf_fermi
+            projwfc_parameters['PROJWFC']['Emax'] = fermi_energy_range[1] + self.ctx.nscf_fermi
+        elif 'Emin' in projwfc_parameters['PROJWFC'] and 'Emax' in projwfc_parameters['PROJWFC']:
             pass
         else:
-            projwfc_parameters['DOS']['Emin'] = self.ctx.nscf_emin
-            projwfc_parameters['DOS']['Emax'] = self.ctx.nscf_emax
+            projwfc_parameters['PROJWFC']['Emin'] = self.ctx.nscf_emin
+            projwfc_parameters['PROJWFC']['Emax'] = self.ctx.nscf_emax
 
         projwfc_inputs.parameters = orm.Dict(dict=projwfc_parameters)
         projwfc_inputs['metadata']['call_link_label'] = 'projwfc'
