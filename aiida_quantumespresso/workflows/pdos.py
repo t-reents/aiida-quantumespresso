@@ -229,8 +229,8 @@ class PdosWorkChain(ProtocolMixin, WorkChain):
             default=lambda: orm.List(list=[]),
             help=(
                 'Energy range around the Fermi level that should be covered in DOS and PROJWFC calculation.'
-                'If not specified and Emin and Emax are specified in the in put parameters, these values will be used.'
-                'Otherwise the default values are extracted from the NSCF calculation.'
+                'If not specified but Emin and Emax are specified in the input parameters, these values will be used.'
+                'Otherwise, the default values are extracted from the NSCF calculation.'
             )
         )
         spec.expose_inputs(
