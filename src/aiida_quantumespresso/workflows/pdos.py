@@ -474,11 +474,9 @@ class PdosWorkChain(ProtocolMixin, WorkChain):
         if fermi_energy_range:
             dos_parameters['DOS']['Emin'] = fermi_energy_range[0] + self.ctx.nscf_fermi
             dos_parameters['DOS']['Emax'] = fermi_energy_range[1] + self.ctx.nscf_fermi
-        elif 'Emin' in dos_parameters['DOS'] and 'Emax' in dos_parameters['DOS']:
-            pass
         else:
-            dos_parameters['DOS']['Emin'] = self.ctx.nscf_emin
-            dos_parameters['DOS']['Emax'] = self.ctx.nscf_emax
+            dos_parameters['DOS'].setdefault('Emin', self.ctx.nscf_emin)
+            dos_parameters['DOS'].setdefault('Emax', self.ctx.nscf_emax)
 
         dos_inputs.parameters = orm.Dict(dos_parameters)
         dos_inputs['metadata']['call_link_label'] = 'dos'
