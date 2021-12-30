@@ -160,6 +160,17 @@ def validate_projwfc(value, _):
     jsonschema.validate(value['parameters'].get_dict()['PROJWFC'], get_parameter_schema())
 
 
+def validate_fermi_energy_range(value):
+    """Validate specified fermi_energy_range.
+    
+    - List needs to consist of two float values.
+    """
+    if len(value) != 2:
+        return 'List needs to consist of two values.'
+    if not all(isinstance(val, float) for val in value):
+        return 'Fermi energy range needs to be specified as floats.'
+
+
 def clean_calcjob_remote(node):
     """Clean the remote directory of a ``CalcJobNode``."""
     cleaned = False
@@ -224,9 +235,9 @@ class PdosWorkChain(ProtocolMixin, WorkChain):
             valid_type=orm.List,
             required=False,
             serializer=to_aiida_type,
-            default=lambda: orm.List(list=[]),
+            validator=validate_fermi_energy_range,
             help=(
-                'Energy range around the Fermi level that should be covered in DOS and PROJWFC calculation.'
+                'Energy range with respect to the Fermi level that should be covered in DOS and PROJWFC calculation.'
                 'If not specified but Emin and Emax are specified in the input parameters, these values will be used.'
                 'Otherwise, the default values are extracted from the NSCF calculation.'
             )
@@ -492,11 +503,9 @@ class PdosWorkChain(ProtocolMixin, WorkChain):
         if fermi_energy_range:
             projwfc_parameters['PROJWFC']['Emin'] = fermi_energy_range[0] + self.ctx.nscf_fermi
             projwfc_parameters['PROJWFC']['Emax'] = fermi_energy_range[1] + self.ctx.nscf_fermi
-        elif 'Emin' in projwfc_parameters['PROJWFC'] and 'Emax' in projwfc_parameters['PROJWFC']:
-            pass
         else:
-            projwfc_parameters['PROJWFC']['Emin'] = self.ctx.nscf_emin
-            projwfc_parameters['PROJWFC']['Emax'] = self.ctx.nscf_emax
+            projwfc_parameters['PROJWFC'].setdefault('Emin', self.ctx.nscf_emin)
+            projwfc_parameters['PROJWFC'].setdefault('Emax', self.ctx.nscf_emax)
 
         projwfc_inputs.parameters = orm.Dict(projwfc_parameters)
         projwfc_inputs['metadata']['call_link_label'] = 'projwfc'
