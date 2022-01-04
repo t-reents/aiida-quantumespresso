@@ -117,7 +117,7 @@ def validate_inputs(value, _):
         for par in ['Emin', 'Emax']:
             if value['dos']['parameters']['DOS'].get(par, None):
                 warnings.warn(
-                    f'The `{par}`` parameter and fermi_energy_range were specified.'
+                    f'The `{par}` parameter and `fermi_energy_range` were specified.'
                     'The value in fermi_energy_range will be used.'
                 )
 
