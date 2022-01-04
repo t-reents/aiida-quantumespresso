@@ -166,9 +166,9 @@ def validate_fermi_energy_range(value):
     - List needs to consist of two float values.
     """
     if len(value) != 2:
-        return 'List needs to consist of two values.'
+        return f'`fermi_energy_range` should be a `List` of length two, but got: {value}'
     if not all(isinstance(val, float) for val in value):
-        return 'Fermi energy range needs to be specified as floats.'
+        return f'`fermi_energy_range` should be a `List` of floats, but got: {value}'
 
 
 def clean_calcjob_remote(node):
