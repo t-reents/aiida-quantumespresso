@@ -160,7 +160,7 @@ def validate_projwfc(value, _):
     jsonschema.validate(value['parameters'].get_dict()['PROJWFC'], get_parameter_schema())
 
 
-def validate_fermi_energy_range(value):
+def validate_fermi_energy_range(value, _):
     """Validate specified fermi_energy_range.
     
     - List needs to consist of two float values.
