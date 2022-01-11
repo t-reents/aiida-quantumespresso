@@ -160,9 +160,9 @@ def validate_projwfc(value, _):
     jsonschema.validate(value['parameters'].get_dict()['PROJWFC'], get_parameter_schema())
 
 
-def validate_fermi_energy_range(value, _):
+def validate_energy_range_vs_fermi(value, _):
     """Validate specified fermi_energy_range.
-    
+
     - List needs to consist of two float values.
     """
     if len(value) != 2:
@@ -231,11 +231,11 @@ class PdosWorkChain(ProtocolMixin, WorkChain):
             help='Terminate workchain steps before submitting calculations (test purposes only).'
         )
         spec.input(
-            'fermi_energy_range',
+            'energy_range_vs_fermi',
             valid_type=orm.List,
             required=False,
             serializer=to_aiida_type,
-            validator=validate_fermi_energy_range,
+            validator=validate_energy_range_vs_fermi,
             help=(
                 'Energy range with respect to the Fermi level that should be covered in DOS and PROJWFC calculation.'
                 'If not specified but Emin and Emax are specified in the input parameters, these values will be used.'
