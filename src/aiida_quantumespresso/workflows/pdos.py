@@ -113,12 +113,12 @@ def validate_inputs(value, _):
         if value['dos']['parameters']['DOS'].get(par, None) != value['projwfc']['parameters']['PROJWFC'].get(par, None):
             return f'The `{par}`` parameter has to be equal for the `dos` and `projwfc` inputs.'
 
-    if value.get('fermi_energy_range', False):
+    if value.get('energy_range_vs_fermi', False):
         for par in ['Emin', 'Emax']:
             if value['dos']['parameters']['DOS'].get(par, None):
                 warnings.warn(
-                    f'The `{par}` parameter and `fermi_energy_range` were specified.'
-                    'The value in `fermi_energy_range` will be used.'
+                    f'The `{par}` parameter and `energy_range_vs_fermi` were specified.'
+                    'The value in `energy_range_vs_fermi` will be used.'
                 )
 
 
@@ -161,14 +161,14 @@ def validate_projwfc(value, _):
 
 
 def validate_energy_range_vs_fermi(value, _):
-    """Validate specified fermi_energy_range.
+    """Validate specified energy_range_vs_fermi.
 
     - List needs to consist of two float values.
     """
     if len(value) != 2:
-        return f'`fermi_energy_range` should be a `List` of length two, but got: {value}'
+        return f'`energy_range_vs_fermi` should be a `List` of length two, but got: {value}'
     if not all(isinstance(val, float) for val in value):
-        return f'`fermi_energy_range` should be a `List` of floats, but got: {value}'
+        return f'`energy_range_vs_fermi` should be a `List` of floats, but got: {value}'
 
 
 def clean_calcjob_remote(node):
