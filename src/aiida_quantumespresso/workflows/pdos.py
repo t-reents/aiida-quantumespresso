@@ -480,11 +480,11 @@ class PdosWorkChain(ProtocolMixin, WorkChain):
         dos_inputs = AttributeDict(self.exposed_inputs(DosCalculation, 'dos'))
         dos_inputs.parent_folder = self.ctx.nscf_parent_folder
         dos_parameters = self.inputs.dos.parameters.get_dict()
-        fermi_energy_range = self.inputs.fermi_energy_range
+        energy_range_vs_fermi = self.inputs.energy_range_vs_fermi
 
-        if fermi_energy_range:
-            dos_parameters['DOS']['Emin'] = fermi_energy_range[0] + self.ctx.nscf_fermi
-            dos_parameters['DOS']['Emax'] = fermi_energy_range[1] + self.ctx.nscf_fermi
+        if energy_range_vs_fermi:
+            dos_parameters['DOS']['Emin'] = energy_range_vs_fermi[0] + self.ctx.nscf_fermi
+            dos_parameters['DOS']['Emax'] = energy_range_vs_fermi[1] + self.ctx.nscf_fermi
         else:
             dos_parameters['DOS'].setdefault('Emin', self.ctx.nscf_emin)
             dos_parameters['DOS'].setdefault('Emax', self.ctx.nscf_emax)
@@ -498,11 +498,11 @@ class PdosWorkChain(ProtocolMixin, WorkChain):
         projwfc_inputs = AttributeDict(self.exposed_inputs(ProjwfcCalculation, 'projwfc'))
         projwfc_inputs.parent_folder = self.ctx.nscf_parent_folder
         projwfc_parameters = self.inputs.projwfc.parameters.get_dict()
-        fermi_energy_range = self.inputs.fermi_energy_range
+        energy_range_vs_fermi = self.inputs.energy_range_vs_fermi
 
-        if fermi_energy_range:
-            projwfc_parameters['PROJWFC']['Emin'] = fermi_energy_range[0] + self.ctx.nscf_fermi
-            projwfc_parameters['PROJWFC']['Emax'] = fermi_energy_range[1] + self.ctx.nscf_fermi
+        if energy_range_vs_fermi:
+            projwfc_parameters['PROJWFC']['Emin'] = energy_range_vs_fermi[0] + self.ctx.nscf_fermi
+            projwfc_parameters['PROJWFC']['Emax'] = energy_range_vs_fermi[1] + self.ctx.nscf_fermi
         else:
             projwfc_parameters['PROJWFC'].setdefault('Emin', self.ctx.nscf_emin)
             projwfc_parameters['PROJWFC'].setdefault('Emax', self.ctx.nscf_emax)
