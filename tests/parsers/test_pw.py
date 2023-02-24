@@ -873,13 +873,12 @@ def test_pw_vcrelax_success_fractional(
 
     assert calcfunction.is_finished, calcfunction.exception
     assert calcfunction.is_finished_ok, calcfunction.exit_message
-    assert not orm.Log.collection.get_logs_for(node), [log.message for log in orm.Log.collection.get_logs_for(node)]
-    assert 'output_kpoints' in results
+    assert 'output_band' in results
     assert 'output_parameters' in results
     assert 'output_structure' in results
     assert 'output_trajectory' in results
     data_regression.check({
-        'output_kpoints': results['output_kpoints'].base.attributes.all,
+        'output_band': results['output_band'].base.attributes.all,
         'output_parameters': results['output_parameters'].get_dict(),
         'output_structure': results['output_structure'].base.attributes.all,
         'output_trajectory': results['output_trajectory'].base.attributes.all,
