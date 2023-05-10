@@ -167,7 +167,7 @@ def validate_energy_range_vs_fermi(value, _):
     """
     if len(value) != 2:
         return f'`energy_range_vs_fermi` should be a `List` of length two, but got: {value}'
-    if not all(isinstance(val, float) for val in value):
+    if not all(isinstance(val, (float, int)) for val in value):
         return f'`energy_range_vs_fermi` should be a `List` of floats, but got: {value}'
 
 

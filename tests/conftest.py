@@ -807,7 +807,7 @@ def generate_workchain_pdos(generate_workchain, generate_inputs_pw, fixture_code
     """Generate an instance of a `PdosWorkChain`."""
 
     def _generate_workchain_pdos():
-        from aiida.orm import Bool, Dict
+        from aiida.orm import Bool, Dict, List
 
         from aiida_quantumespresso.utils.resources import get_default_options
 
@@ -855,7 +855,7 @@ def generate_workchain_pdos(generate_workchain, generate_inputs_pw, fixture_code
             'nscf': nscf,
             'dos': dos,
             'projwfc': projwfc,
-            'align_to_fermi': Bool(True),
+            'energy_range_vs_fermi': List([-10, 10]),
             'dry_run': Bool(True)
         }
 
