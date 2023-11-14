@@ -312,6 +312,18 @@ def parse_xml_post_6_2(xml):
         num_bands_up = band_structure.get('nbnd_up', None)
         num_bands_down = band_structure.get('nbnd_dw', None)
 
+        if 'fermi_energy' in band_structure:
+            xml_data['fermi_energy'] = band_structure['fermi_energy'] * CONSTANTS.hartree_to_ev
+
+        if 'two_fermi_energies' in band_structure:
+            xml_data['fermi_energy_up'], xml_data['fermi_energy_down'] = [
+                energy * CONSTANTS.hartree_to_ev for energy in band_structure['two_fermi_energies']
+            ]
+
+        xml_data['number_of_atomic_wfc'] = num_atomic_wfc
+        xml_data['number_of_k_points'] = num_k_points
+        xml_data['number_of_electrons'] = num_electrons
+
         if num_bands is None and num_bands_up is None and num_bands_down is None:
             raise XMLParseError('None of `nbnd`, `nbnd_up` or `nbdn_dw` could be parsed.')
 
@@ -339,77 +351,69 @@ def parse_xml_post_6_2(xml):
             if num_bands is None:
                 num_bands = num_bands_up + num_bands_down  # backwards compatibility;
 
-        k_points = []
-        k_points_weights = []
-        ks_states = band_structure['ks_energies']
-        for ks_state in ks_states:
-            k_points.append([kp * 2 * np.pi / output_alat_angstrom for kp in ks_state['k_point']['$']])
-            k_points_weights.append(ks_state['k_point']['@weight'])
+        if 'ks_energies' in band_structure:
 
-        if not spins:
-            band_eigenvalues = [[]]
-            band_occupations = [[]]
+            k_points = []
+            k_points_weights = []
+
+            ks_states = band_structure['ks_energies']
+
             for ks_state in ks_states:
-                band_eigenvalues[0].append(ks_state['eigenvalues']['$'])
-                band_occupations[0].append(ks_state['occupations']['$'])
-        else:
-            band_eigenvalues = [[], []]
-            band_occupations = [[], []]
-            for ks_state in ks_states:
-                band_eigenvalues[0].append(ks_state['eigenvalues']['$'][0:num_bands_up])
-                band_eigenvalues[1].append(ks_state['eigenvalues']['$'][num_bands_up:num_bands])
-                band_occupations[0].append(ks_state['occupations']['$'][0:num_bands_up])
-                band_occupations[1].append(ks_state['occupations']['$'][num_bands_up:num_bands])
+                k_points.append([kp * 2 * np.pi / output_alat_angstrom for kp in ks_state['k_point']['$']])
+                k_points_weights.append(ks_state['k_point']['@weight'])
 
-        band_eigenvalues = np.array(band_eigenvalues) * CONSTANTS.hartree_to_ev
-        band_occupations = np.array(band_occupations)
+            if not spins:
+                band_eigenvalues = [[]]
+                band_occupations = [[]]
+                for ks_state in ks_states:
+                    band_eigenvalues[0].append(ks_state['eigenvalues']['$'])
+                    band_occupations[0].append(ks_state['occupations']['$'])
+            else:
+                band_eigenvalues = [[], []]
+                band_occupations = [[], []]
+                for ks_state in ks_states:
+                    band_eigenvalues[0].append(ks_state['eigenvalues']['$'][0:num_bands_up])
+                    band_eigenvalues[1].append(ks_state['eigenvalues']['$'][num_bands_up:num_bands])
+                    band_occupations[0].append(ks_state['occupations']['$'][0:num_bands_up])
+                    band_occupations[1].append(ks_state['occupations']['$'][num_bands_up:num_bands])
 
-        if not spins:
-            parser_assert_equal(
-                band_eigenvalues.shape, (1, num_k_points, num_bands), 'Unexpected shape of band_eigenvalues'
-            )
-            parser_assert_equal(
-                band_occupations.shape, (1, num_k_points, num_bands), 'Unexpected shape of band_occupations'
-            )
-        else:
-            parser_assert_equal(
-                band_eigenvalues.shape, (2, num_k_points, num_bands_up), 'Unexpected shape of band_eigenvalues'
-            )
-            parser_assert_equal(
-                band_occupations.shape, (2, num_k_points, num_bands_up), 'Unexpected shape of band_occupations'
-            )
+            band_eigenvalues = np.array(band_eigenvalues) * CONSTANTS.hartree_to_ev
+            band_occupations = np.array(band_occupations)
 
-        if not spins:
-            xml_data['number_of_bands'] = num_bands
-        else:
-            # For collinear spin-polarized calculations `spins=True` and `num_bands` is sum of both channels. To get the
-            # actual number of bands, we divide by two using integer division
-            xml_data['number_of_bands'] = num_bands // 2
+            if not spins:
+                parser_assert_equal(
+                    band_eigenvalues.shape, (1, num_k_points, num_bands), 'Unexpected shape of band_eigenvalues'
+                )
+                parser_assert_equal(
+                    band_occupations.shape, (1, num_k_points, num_bands), 'Unexpected shape of band_occupations'
+                )
+            else:
+                parser_assert_equal(
+                    band_eigenvalues.shape, (2, num_k_points, num_bands_up), 'Unexpected shape of band_eigenvalues'
+                )
+                parser_assert_equal(
+                    band_occupations.shape, (2, num_k_points, num_bands_up), 'Unexpected shape of band_occupations'
+                )
 
-        for key, value in [('number_of_bands_up', num_bands_up), ('number_of_bands_down', num_bands_down)]:
-            if value is not None:
-                xml_data[key] = value
+            bands_dict = {
+                'occupations': band_occupations,
+                'bands': band_eigenvalues,
+                'bands_units': 'eV',
+            }
+            xml_data['bands'] = bands_dict
+            xml_data['k_points'] = k_points
+            xml_data['k_points_weights'] = k_points_weights
 
-        if 'fermi_energy' in band_structure:
-            xml_data['fermi_energy'] = band_structure['fermi_energy'] * CONSTANTS.hartree_to_ev
+            if not spins:
+                xml_data['number_of_bands'] = num_bands
+            else:
+                # For collinear spin-polarized calculations `spins=True` and `num_bands` is sum of both channels. To get the
+                # actual number of bands, we divide by two using integer division
+                xml_data['number_of_bands'] = num_bands // 2
 
-        if 'two_fermi_energies' in band_structure:
-            xml_data['fermi_energy_up'], xml_data['fermi_energy_down'] = [
-                energy * CONSTANTS.hartree_to_ev for energy in band_structure['two_fermi_energies']
-            ]
-
-        bands_dict = {
-            'occupations': band_occupations,
-            'bands': band_eigenvalues,
-            'bands_units': 'eV',
-        }
-
-        xml_data['number_of_atomic_wfc'] = num_atomic_wfc
-        xml_data['number_of_k_points'] = num_k_points
-        xml_data['number_of_electrons'] = num_electrons
-        xml_data['k_points'] = k_points
-        xml_data['k_points_weights'] = k_points_weights
-        xml_data['bands'] = bands_dict
+            for key, value in [('number_of_bands_up', num_bands_up), ('number_of_bands_down', num_bands_down)]:
+                if value is not None:
+                    xml_data[key] = value
 
     try:
         monkhorst_pack = inputs['k_points_IBZ']['monkhorst_pack']
