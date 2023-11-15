@@ -13,14 +13,16 @@ from aiida_quantumespresso.calculations import BasePwCpInputGenerator
 class PwCalculation(BasePwCpInputGenerator):
     """`CalcJob` implementation for the pw.x code of Quantum ESPRESSO."""
 
+    _default_namelists = ('CONTROL', 'SYSTEM', 'ELECTRONS', 'DIRECT_MINIMIZATION')
+
     _automatic_namelists = {
-        'scf': ['CONTROL', 'SYSTEM', 'ELECTRONS'],
-        'nscf': ['CONTROL', 'SYSTEM', 'ELECTRONS'],
-        'bands': ['CONTROL', 'SYSTEM', 'ELECTRONS'],
-        'relax': ['CONTROL', 'SYSTEM', 'ELECTRONS', 'IONS'],
-        'md': ['CONTROL', 'SYSTEM', 'ELECTRONS', 'IONS'],
-        'vc-md': ['CONTROL', 'SYSTEM', 'ELECTRONS', 'IONS', 'CELL'],
-        'vc-relax': ['CONTROL', 'SYSTEM', 'ELECTRONS', 'IONS', 'CELL'],
+        'scf': _default_namelists,
+        'nscf': _default_namelists,
+        'bands': _default_namelists,
+        'relax': _default_namelists + ('IONS',),
+        'md': _default_namelists + ('IONS',),
+        'vc-md': _default_namelists + ('IONS', 'CELL'),
+        'vc-relax': _default_namelists + ('IONS', 'CELL'),
     }
 
     # Keywords that cannot be set by the user but will be set by the plugin

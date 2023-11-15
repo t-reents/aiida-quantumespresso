@@ -9,9 +9,32 @@ import numpy
 
 from aiida_quantumespresso.calculations.pw import PwCalculation
 from aiida_quantumespresso.utils.mapping import get_logging_container
+from aiida_quantumespresso.workflows.protocols.utils import recursive_merge
 
 from .base import BaseParser
 from .parse_raw.pw import reduce_symmetries
+
+
+def fix_sirius_xml_prints(array):
+    """Fix an issue where SIRIUS prints very small numbers incorrectly.
+    
+    In some cases SIRIUS prints very small numbers in scientific notation, but
+    without the capital `E` to indicate the exponent:
+
+        
+        <forces rank="2" dims="           3           6">
+        3.220681500679849E-86   4.347898683069749-103  -3.696810758148386E-49
+
+    This function will fix this by converting any number that cannot be converted into
+    a float to zero.
+    """
+    def try_convert(s):
+        try:
+            return float(s)
+        except (ValueError, TypeError):
+            return 0
+        
+    return numpy.vectorize(try_convert)(array)
 
 
 class PwParser(BaseParser):
@@ -40,11 +63,11 @@ class PwParser(BaseParser):
         parser_options = settings.get(self.get_parser_settings_key(), None)
 
         # Verify that the retrieved_temporary_folder is within the arguments if temporary files were specified
-        if self.node.base.attributes.get('retrieve_temporary_list', None):
-            try:
-                dir_with_bands = kwargs['retrieved_temporary_folder']
-            except KeyError:
-                return self.exit(self.exit_codes.ERROR_NO_RETRIEVED_TEMPORARY_FOLDER)
+        # if self.node.base.attributes.get('retrieve_temporary_list', None):
+        #     try:
+        #         dir_with_bands = kwargs['retrieved_temporary_folder']
+        #     except KeyError:
+        #         return self.exit(self.exit_codes.ERROR_NO_RETRIEVED_TEMPORARY_FOLDER)
 
         # We check if the `CRASH` file was retrieved. If so, we parse its output
         crash_file_filename = self.node.process_class._CRASH_FILE
@@ -404,6 +427,7 @@ class PwParser(BaseParser):
         :return: tuple of two dictionaries, first with raw parsed data and second with log messages
         """
         from aiida_quantumespresso.parsers.parse_raw.pw import parse_stdout
+        from aiida_quantumespresso.parsers.parse_raw.pw import parse_sirius_stdout
 
         logs = get_logging_container()
         parsed_data = {}
@@ -425,6 +449,8 @@ class PwParser(BaseParser):
         except Exception as exc:
             logs.critical.append(traceback.format_exc())
             self.exit_code_stdout = self.exit_codes.ERROR_UNEXPECTED_PARSER_EXCEPTION.format(exception=exc)
+
+        parsed_data = recursive_merge(parsed_data, parse_sirius_stdout(stdout))
 
         # If the stdout was incomplete, most likely the job was interrupted before it could cleanly finish, so the
         # output files are most likely corrupt and cannot be restarted from
@@ -519,7 +545,13 @@ class PwParser(BaseParser):
         )
 
         for key, value in parsed_trajectory.items():
-            trajectory.set_array(key, numpy.array(value))
+            if key in (
+                'forces',
+                'stress'
+            ):
+                trajectory.set_array(key, fix_sirius_xml_prints(numpy.array(value)))
+            else:
+                trajectory.set_array(key, numpy.array(value))
 
         return trajectory
 
@@ -571,14 +603,16 @@ class PwParser(BaseParser):
 
         # Correct the occupation for nspin=1 calculations where Quantum ESPRESSO populates each band only halfway
         if len(parsed_bands['occupations']) > 1:
-            occupations = parsed_bands['occupations']
+            occupations = numpy.array(parsed_bands['occupations'])
         else:
-            occupations = 2. * numpy.array(parsed_bands['occupations'][0])
+            occupations = numpy.array(parsed_bands['occupations'][0])
 
-        if len(parsed_bands['bands']) > 1:
-            bands_energies = parsed_bands['bands']
-        else:
-            bands_energies = parsed_bands['bands'][0]
+        occupations = fix_sirius_xml_prints(occupations)
+
+        if len(parsed_bands['occupations']) > 1:
+            occupations *= 2.
+
+        bands_energies = parsed_bands['bands'][0] if len(parsed_bands['bands']) == 1 else parsed_bands['bands']
 
         bands = orm.BandsData()
         bands.set_kpointsdata(parsed_kpoints)

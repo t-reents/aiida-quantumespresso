@@ -76,11 +76,7 @@ def parse_xml_post_6_2(xml):
     #  xml_dictionary['key']['@attr'] returns its attribute 'attr'
     #  xml_dictionary['key']['nested_key'] goes one level deeper.
 
-    xml_dictionary, errors = xsd.to_dict(xml, validation='lax')
-    if errors:
-        logs.error.append(f'{len(errors)} XML schema validation error(s) schema: {schema_filepath}:')
-        for err in errors:
-            logs.error.append(str(err))
+    xml_dictionary = xsd.to_dict(xml, validation='skip')
 
     xml_version = Version(xml_dictionary['general_info']['xml_format']['@VERSION'])
     inputs = xml_dictionary.get('input', {})
@@ -572,6 +568,8 @@ def parse_xml_post_6_2(xml):
 
 def parse_step_to_trajectory(trajectory, data, skip_structure=False):
     """."""
+    from ..pw import fix_sirius_xml_prints
+
     if 'scf_conv' in data and 'n_scf_steps' in data['scf_conv']:
         scf_iterations = data['scf_conv']['n_scf_steps']  # Can be zero in case of initialization-only calculation
         if scf_iterations:
@@ -586,12 +584,12 @@ def parse_step_to_trajectory(trajectory, data, skip_structure=False):
         atomic_structure = data['atomic_structure']
 
         if 'atomic_positions' in atomic_structure:
-            positions = np.array([a['$'] for a in atomic_structure['atomic_positions']['atom']])
+            positions = fix_sirius_xml_prints(np.array([a['$'] for a in atomic_structure['atomic_positions']['atom']]))
             trajectory['positions'].append(positions * CONSTANTS.bohr_to_ang)
 
         if 'cell' in atomic_structure:
             cell = atomic_structure['cell']
-            cell = np.array([cell['a1'], cell['a2'], cell['a3']])
+            cell = fix_sirius_xml_prints(np.array([cell['a1'], cell['a2'], cell['a3']]))
             trajectory['cells'].append(cell * CONSTANTS.bohr_to_ang)
 
     if 'total_energy' in data:
