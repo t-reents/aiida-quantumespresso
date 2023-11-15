@@ -97,7 +97,6 @@ def validate_inputs(value, _):
 
     - Check that either the `scf` or `nscf.pw.parent_folder` inputs is provided.
     - Check that the `Emin`, `Emax` and `DeltaE` inputs are the same for the `dos` and `projwfc` namespaces.
-    - Check that `Emin` and `Emax` are provided in case `align_to_fermi` is set to `True`.
     """
     # Check that either the `scf` input or `nscf.pw.parent_folder` is provided.
     import warnings
@@ -390,6 +389,9 @@ class PdosWorkChain(ProtocolMixin, WorkChain):
         """Initialize context variables that are used during the logical flow of the workchain."""
         self.ctx.serial_clean = 'serial_clean' in self.inputs and self.inputs.serial_clean.value
         self.ctx.dry_run = 'dry_run' in self.inputs and self.inputs.dry_run.value
+        self.ctx.energy_range_vs_fermi = (
+            self.inputs.energy_range_vs_fermi if 'energy_range_vs_fermi' in self.inputs else None
+            )
 
     def serial_clean(self):
         """Return whether dos and projwfc calculations should be run in serial.
@@ -480,11 +482,10 @@ class PdosWorkChain(ProtocolMixin, WorkChain):
         dos_inputs = AttributeDict(self.exposed_inputs(DosCalculation, 'dos'))
         dos_inputs.parent_folder = self.ctx.nscf_parent_folder
         dos_parameters = self.inputs.dos.parameters.get_dict()
-        energy_range_vs_fermi = self.inputs.energy_range_vs_fermi
 
-        if energy_range_vs_fermi:
-            dos_parameters['DOS']['Emin'] = energy_range_vs_fermi[0] + self.ctx.nscf_fermi
-            dos_parameters['DOS']['Emax'] = energy_range_vs_fermi[1] + self.ctx.nscf_fermi
+        if self.ctx.energy_range_vs_fermi:
+            dos_parameters['DOS']['Emin'] = self.ctx.energy_range_vs_fermi[0] + self.ctx.nscf_fermi
+            dos_parameters['DOS']['Emax'] = self.ctx.energy_range_vs_fermi[1] + self.ctx.nscf_fermi
         else:
             dos_parameters['DOS'].setdefault('Emin', self.ctx.nscf_emin)
             dos_parameters['DOS'].setdefault('Emax', self.ctx.nscf_emax)
@@ -498,11 +499,10 @@ class PdosWorkChain(ProtocolMixin, WorkChain):
         projwfc_inputs = AttributeDict(self.exposed_inputs(ProjwfcCalculation, 'projwfc'))
         projwfc_inputs.parent_folder = self.ctx.nscf_parent_folder
         projwfc_parameters = self.inputs.projwfc.parameters.get_dict()
-        energy_range_vs_fermi = self.inputs.energy_range_vs_fermi
 
-        if energy_range_vs_fermi:
-            projwfc_parameters['PROJWFC']['Emin'] = energy_range_vs_fermi[0] + self.ctx.nscf_fermi
-            projwfc_parameters['PROJWFC']['Emax'] = energy_range_vs_fermi[1] + self.ctx.nscf_fermi
+        if self.ctx.energy_range_vs_fermi:
+            projwfc_parameters['PROJWFC']['Emin'] = self.ctx.energy_range_vs_fermi[0] + self.ctx.nscf_fermi
+            projwfc_parameters['PROJWFC']['Emax'] = self.ctx.energy_range_vs_fermi[1] + self.ctx.nscf_fermi
         else:
             projwfc_parameters['PROJWFC'].setdefault('Emin', self.ctx.nscf_emin)
             projwfc_parameters['PROJWFC'].setdefault('Emax', self.ctx.nscf_emax)
