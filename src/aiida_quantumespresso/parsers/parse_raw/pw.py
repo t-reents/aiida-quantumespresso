@@ -942,6 +942,42 @@ def parse_stdout(stdout, input_parameters, parser_options=None, parsed_xml=None,
     return parsed_data, logs
 
 
+def parse_sirius_stdout(stdout):
+    """Parse the `stdout` of a SIRIUS-enabled Quantum ESPRESSO calculation."""
+
+    def block_search(string: str, block_start: str, block_end: str) -> list:
+
+        start_match = re.search(block_start, string)
+
+        if start_match is None:
+            return []
+
+        start_index = start_match.end()
+        end_index = re.search(block_end, string[start_index:]).start()
+        block_lines = scf[start_index:start_index + end_index].split('\n')
+        return block_lines
+
+    scf_runs = stdout.split('* running SCF ground state *')[1:]
+
+    trajectory_data = {}
+
+    for scf in scf_runs:
+
+        magnetic_moments = []
+
+        for line in block_search(scf, r'\[find\] Charges and magnetic moments', r'\[find\] total charge'):
+            match = re.match(r'\[find\]\s+\d+\s+\[[\s\d\.\,-]+\]\s+(?P<magmom>[\d\.\,-]+)', line)
+            if match is not None:
+                magnetic_moments.append(float(match.group('magmom')))
+
+        if magnetic_moments:
+            trajectory_data.setdefault('atomic_magnetic_moments', []).append(magnetic_moments)
+
+    return {
+        'trajectory': trajectory_data,
+    }
+
+
 def grep_energy_from_line(line):
     try:
         return float(line.split('=')[1].split('Ry')[0]) * CONSTANTS.ry_to_ev
