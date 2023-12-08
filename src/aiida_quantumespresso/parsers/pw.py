@@ -174,7 +174,8 @@ class PwParser(BaseParser):
 
         for key in [
             'energy_accuracy', 'energy_one_electron', 'energy_threshold', 'energy_smearing', 'energy_one_center_paw',
-            'energy_vdw', 'fermi_energy', 'scf_accuracy', 'steps', 'total_force', 'stress'
+            'energy_vdw', 'fermi_energy', 'scf_accuracy', 'steps', 'total_force', 'stress', 'total_magnetization',
+            'absolute_magnetization', 'atomic_magnetic_moments', 'atomic_charges'
         ]:
             if key not in parsed_trajectory and key in parsed_stdout['trajectory']:
                 parsed_trajectory[key] = parsed_stdout['trajectory'][key]
