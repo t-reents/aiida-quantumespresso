@@ -18,6 +18,8 @@ default_inputs:
                     forc_conv_thr: 0.5e-2
                 CELL:
                     press_conv_thr: 2
+                SYSTEM:
+                    degauss: 0.0275
 default_protocol: moderate
 protocols:
     moderate:
