@@ -21,6 +21,10 @@ default_protocol: moderate
 protocols:
     moderate:
         description: 'Protocol to perform a band structure calculation at normal precision at moderate computational cost.'
+    default_slurm:
+        description: 'default for slurm'
+    default_sge:
+        description: 'default for sge'
     precise:
         description: 'Protocol to perform a band structure calculation at high precision at higher computational cost.'
         bands_kpoints_distance: 0.015

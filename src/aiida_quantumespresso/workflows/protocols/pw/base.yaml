@@ -10,8 +10,6 @@ default_inputs:
     pw:
         metadata:
             options:
-                resources:
-                    num_machines: 1
                 max_wallclock_seconds: 43200  # Twelve hours
                 withmpi: True
         parameters:
@@ -30,6 +28,21 @@ default_inputs:
                 mixing_beta: 0.4
 default_protocol: moderate
 protocols:
+    default_slurm:
+        description: 'default for slurm'
+        pw:
+            metadata:
+                options:
+                    resources:
+                        num_machines: 3
+    default_sge:
+        description: 'default for sge'
+        pw:
+            metadata:
+                options:
+                    resources:
+                        parallel_env: mpi
+                        tot_num_mpiprocs: 64
     moderate:
         description: 'Protocol to perform the computation at normal precision at moderate computational cost.'
     precise:
