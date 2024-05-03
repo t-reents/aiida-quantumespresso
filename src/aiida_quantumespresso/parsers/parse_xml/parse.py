@@ -568,6 +568,10 @@ def parse_xml_post_6_2(xml):
 
 def parse_step_to_trajectory(trajectory, data, skip_structure=False):
     """."""
+
+    haBohr_to_eVA = 51.42208619083232  # value taken from http://greif.geo.berkeley.edu/~driver/conversions.html
+    haBohr3_to_GPa = 29421.02648438959 # value taken from http://greif.geo.berkeley.edu/~driver/conversions.html
+
     from ..pw import fix_sirius_xml_prints
 
     if 'scf_conv' in data and 'n_scf_steps' in data['scf_conv']:
@@ -602,9 +606,11 @@ def parse_step_to_trajectory(trajectory, data, skip_structure=False):
     if 'forces' in data and '$' in data['forces']:
         forces = np.array(data['forces']['$'])
         dimensions = data['forces']['@dims']  # Like [3, 2], should be reversed to reshape the forces array
+        forces = forces * haBohr_to_eVA
         trajectory['forces'].append(forces.reshape(dimensions[::-1]))
 
     if 'stress' in data and '$' in data['stress']:
         stress = np.array(data['stress']['$'])
         dimensions = data['stress']['@dims']  # Like [3, 3], should be reversed to reshape the stress array
+        stress = stress * haBohr3_to_GPa
         trajectory['stress'].append(stress.reshape(dimensions[::-1]))
