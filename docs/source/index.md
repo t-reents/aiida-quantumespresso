@@ -33,6 +33,7 @@ topics/workflows/index
 :caption: Reference
 reference/api/index
 reference/cli/index
+reference/units/units
 ```
 
 # AiiDA Quantum ESPRESSO

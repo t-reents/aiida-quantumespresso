@@ -84,6 +84,8 @@ exclude_patterns = ['**.ipynb_checkpoints', 'reference/api/auto/aiida_quantumesp
 # -- MyST options
 
 myst_enable_extensions = [
+    'dollarmath',
+    'amsmath',
     'deflist',
     'colon_fence',
     'substitution',
