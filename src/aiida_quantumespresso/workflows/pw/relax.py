@@ -254,11 +254,6 @@ class PwRelaxWorkChain(ProtocolMixin, WorkChain):
             self.report('Meta-convergence disabled: workchain completed after a single iteration.')
             return False
 
-        # Stop if the maximum number of meta iterations has been reached
-        if self.ctx.iteration == self.inputs.max_meta_convergence_iterations.value:
-            self.report('Maximum number of meta convergence iterations reached.')
-            return self.exit_codes.ERROR_MAX_ITERATIONS_EXCEEDED
-
         base_relax_workchain = self.ctx.base_relax_workchains[-1]
 
         # If the last work chain still found Pulay stresses in the final SCF, continue
@@ -343,6 +338,11 @@ class PwRelaxWorkChain(ProtocolMixin, WorkChain):
         # Set relaxed structure as input structure for next iteration
         self.ctx.current_structure = structure
         self.ctx.current_number_of_bands = workchain.outputs.output_parameters.get_dict()['number_of_bands']
+
+        # Stop if the maximum number of meta iterations has been reached
+        if self.ctx.meta_convergence and self.ctx.iteration == self.inputs.max_meta_convergence_iterations.value:
+            self.report('Maximum number of meta convergence iterations reached.')
+            return self.exit_codes.ERROR_MAX_ITERATIONS_EXCEEDED
 
     def results(self):
         """Attach the output parameters and structure of the last workchain to the outputs."""
