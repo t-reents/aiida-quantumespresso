@@ -640,3 +640,21 @@ class PwBaseWorkChain(ProtocolMixin, BaseRestartWorkChain):
         self.report_error_handled(calculation, action)
         self.results()  # Call the results method to attach the output nodes
         return ProcessHandlerReport(True, self.exit_codes.WARNING_ELECTRONIC_CONVERGENCE_NOT_REACHED)
+
+
+    @process_handler(priority=541, exit_codes=[
+        PwCalculation.exit_codes.ERROR_SYMMETRY_NON_ORTHOGONAL_OPERATION,
+        PwCalculation.exit_codes.ERROR_SYMMETRY_OPERATIONS_NOT_SATISFIED,
+    ])
+    def handle_symmetry_non_orthogonal_warning(self, calculation):
+        """Handle `ERROR_SYMMETRY_NON_ORTHOGONAL_OPERATION` and `ERROR_SYMMETRY_OPERATIONS_NOT_SATISFIED`
+
+        Use the structure from the last relaxation step as the starting point and restart from scratch.
+        """
+
+        self.ctx.inputs.structure = calculation.outputs.output_structure
+        action = 'initialised the structure again and restarting from scratch.'
+
+        self.set_restart_type(RestartType.FROM_SCRATCH)
+        self.report_error_handled(calculation, action)
+        return ProcessHandlerReport(True)

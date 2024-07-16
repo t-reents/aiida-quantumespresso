@@ -13,7 +13,7 @@ from aiida_quantumespresso.calculations import BasePwCpInputGenerator
 class PwCalculation(BasePwCpInputGenerator):
     """`CalcJob` implementation for the pw.x code of Quantum ESPRESSO."""
 
-    _default_namelists = ('CONTROL', 'SYSTEM', 'ELECTRONS', 'DIRECT_MINIMIZATION')
+    _default_namelists = ('CONTROL', 'SYSTEM', 'ELECTRONS')
 
     _automatic_namelists = {
         'scf': _default_namelists,
@@ -161,6 +161,8 @@ class PwCalculation(BasePwCpInputGenerator):
         spec.exit_code(542, 'ERROR_RADIAL_FFT_SIGNIFICANT_VOLUME_CONTRACTION',
             message=('The cell relaxation caused a significant volume contraction '
                      'and there is not enough space allocated for radial FFT.'))
+        spec.exit_code(543, 'ERROR_SYMMETRY_OPERATIONS_NOT_SATISFIED',
+            message='The variable cell optimization caused the symmetry operations to not be satisfied.')
 
         # Strong warnings about calculation results, but something tells us that you're ok with that
         spec.exit_code(710, 'WARNING_ELECTRONIC_CONVERGENCE_NOT_REACHED',

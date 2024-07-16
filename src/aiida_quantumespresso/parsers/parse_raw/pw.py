@@ -243,7 +243,7 @@ def detect_important_message(logs, line):
         'error': {
             'Maximum CPU time exceeded': 'ERROR_OUT_OF_WALLTIME',
             'convergence NOT achieved after': 'ERROR_ELECTRONIC_CONVERGENCE_NOT_REACHED',
-            'history already reset at previous step: stopping': 'ERROR_IONIC_CYCLE_BFGS_HISTORY_FAILURE',
+            'history already reset at previous step: ': 'ERROR_IONIC_CYCLE_BFGS_HISTORY_FAILURE',
             'problems computing cholesky': 'ERROR_DIAGONALIZATION_CHOLESKY_DECOMPOSITION',
             'charge is wrong': 'ERROR_CHARGE_IS_WRONG',
             'not orthogonal operation': 'ERROR_SYMMETRY_NON_ORTHOGONAL_OPERATION',
@@ -258,6 +258,7 @@ def detect_important_message(logs, line):
             'Error in routine broyden': 'ERROR_BROYDEN_FACTORIZATION',
             'Not enough space allocated for radial FFT: try restarting with a larger cell_factor': 'ERROR_RADIAL_FFT_SIGNIFICANT_VOLUME_CONTRACTION',
             REG_ERROR_NPOOLS_TOO_HIGH: 'ERROR_NPOOLS_TOO_HIGH',
+            'some of the original symmetry operations not satisfied': 'ERROR_SYMMETRY_OPERATIONS_NOT_SATISFIED'
         },
         'warning': {
             'Warning:': None,

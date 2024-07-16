@@ -11,7 +11,7 @@ from aiida_quantumespresso.utils.mapping import get_logging_container
 
 from .exceptions import XMLParseError
 from .versions import get_default_schema_filepath, get_schema_filepath
-
+from ..pw import fix_sirius_xml_prints
 
 def raise_parsing_error(message):
     raise XMLParseError(message)
@@ -511,8 +511,8 @@ def parse_xml_post_6_2(xml):
 
     for atom in outputs['atomic_structure']['atomic_positions']['atom']:
         atomic_species_name.append(atom['@name'])
-        atoms.append([atom['@name'], [coord * CONSTANTS.bohr_to_ang for coord in atom['$']]])
-
+        atoms.append([atom['@name'], [fix_sirius_xml_prints(coord) * CONSTANTS.bohr_to_ang for coord in atom['$']]])
+        
     species = outputs['atomic_species']['species']
     structure_data = {
         'atomic_positions_units': 'Angstrom',
@@ -568,7 +568,7 @@ def parse_xml_post_6_2(xml):
 
 def parse_step_to_trajectory(trajectory, data, skip_structure=False):
     """."""
-    from ..pw import fix_sirius_xml_prints
+    from ..pw import fix_sirius_xml_prints # Do we really need that here? If we use it in other parts of the parser maybe we put it in the beginning? 
 
     if 'scf_conv' in data and 'n_scf_steps' in data['scf_conv']:
         scf_iterations = data['scf_conv']['n_scf_steps']  # Can be zero in case of initialization-only calculation
@@ -602,9 +602,9 @@ def parse_step_to_trajectory(trajectory, data, skip_structure=False):
     if 'forces' in data and '$' in data['forces']:
         forces = np.array(data['forces']['$'])
         dimensions = data['forces']['@dims']  # Like [3, 2], should be reversed to reshape the forces array
-        trajectory['forces'].append(forces.reshape(dimensions[::-1]))
+        trajectory['forces'].append(fix_sirius_xml_prints(forces.reshape(dimensions[::-1])))
 
     if 'stress' in data and '$' in data['stress']:
         stress = np.array(data['stress']['$'])
         dimensions = data['stress']['@dims']  # Like [3, 3], should be reversed to reshape the stress array
-        trajectory['stress'].append(stress.reshape(dimensions[::-1]))
+        trajectory['stress'].append(fix_sirius_xml_prints(stress.reshape(dimensions[::-1])))

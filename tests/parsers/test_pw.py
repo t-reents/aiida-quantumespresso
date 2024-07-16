@@ -1190,7 +1190,7 @@ def test_magnetic_moments_v68(
     node = generate_calc_job_node(entry_point_calc_job, fixture_localhost, name, inputs)
     parser = generate_parser(entry_point_parser)
     results, calcfunction = parser.parse_from_node(node, store_provenance=False)
-
+    
     assert calcfunction.is_finished_ok, calcfunction.exit_message
     assert 'output_trajectory' in results
 
@@ -1200,3 +1200,42 @@ def test_magnetic_moments_v68(
         'atomic_magnetic_moments':
         results['output_trajectory'].get_array('atomic_magnetic_moments').tolist(),
     })
+    
+def test_atomic_coordinates_parser(
+    fixture_localhost, generate_calc_job_node, generate_parser, generate_inputs, data_regression
+):
+    """Test the parsing of the atomic coordinates in QE from stdout."""
+    name = 'atomic_coordinates_parser'
+    entry_point_calc_job = 'quantumespresso.pw'
+    entry_point_parser = 'quantumespresso.pw'
+
+    # By setting the `without_xml` option the parsing can only use the stdout content
+    inputs = generate_inputs(calculation_type='relax')
+    node = generate_calc_job_node(entry_point_calc_job, fixture_localhost, name, inputs)
+    parser = generate_parser(entry_point_parser)
+    results, calcfunction = parser.parse_from_node(node, store_provenance=False)
+    
+    assert calcfunction.exit_code , 350 # This is the expected exit code for this calculation.
+    assert 'output_trajectory' in results
+
+    data_regression.check({
+        'atomic_coordinates':
+        results['output_trajectory'].get_array('positions').tolist(),
+    })
+    
+def test_bfgs_failed_parser(fixture_localhost, generate_calc_job_node, generate_parser, generate_inputs):
+    """Test the parsing of BFGS failed error from stdout."""
+    
+    name = 'bfgs_failed_parser'
+    entry_point_calc_job = 'quantumespresso.pw'
+    entry_point_parser = 'quantumespresso.pw'
+
+    inputs = generate_inputs(calculation_type='relax')
+    node = generate_calc_job_node(entry_point_calc_job, fixture_localhost, name, inputs)
+    parser = generate_parser(entry_point_parser)
+    results, calcfunction = parser.parse_from_node(node, store_provenance=False)
+    # Maybe we need to add an assertion regarding the exit code of the calculation.
+
+    assert calcfunction.is_failed
+    assert orm.Log.collection.get_logs_for(node)
+    assert 'output_trajectory' in results

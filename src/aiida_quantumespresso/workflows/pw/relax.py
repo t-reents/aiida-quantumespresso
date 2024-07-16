@@ -267,7 +267,7 @@ class PwRelaxWorkChain(ProtocolMixin, WorkChain):
             self.report('Pulay stresses still present, running another geometry optimizatio.')
             return True
 
-        # If the kpoints are defined as a density, make sure the kpoints mesh is the same for the new structur
+        # If the kpoints are defined as a density, make sure the kpoints mesh is the same for the new structure
         if 'kpoints_distance' in self.ctx.relax_inputs:
             input_kpts_mesh, _ = base_relax_workchain.base.links.get_outgoing(
                 link_label_filter='iteration_01'

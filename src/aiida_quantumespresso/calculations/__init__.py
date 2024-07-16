@@ -734,6 +734,9 @@ class BasePwCpInputGenerator(CalcJob):
                     'namelists using the NAMELISTS inside the `settings` input node'
                 ) from exception
 
+        if 'DIRECT_MINIMIZATION' in input_params:
+            namelists_toprint.append('DIRECT_MINIMIZATION')
+
         inputfile = ''
         for namelist_name in namelists_toprint:
             inputfile += f'&{namelist_name}\n'
