@@ -23,6 +23,13 @@ class PwCalculation(BasePwCpInputGenerator):
         'md': _default_namelists + ('IONS',),
         'vc-md': _default_namelists + ('IONS', 'CELL'),
         'vc-relax': _default_namelists + ('IONS', 'CELL'),
+        'scf': _default_namelists,
+        'nscf': _default_namelists,
+        'bands': _default_namelists,
+        'relax': _default_namelists + ('IONS',),
+        'md': _default_namelists + ('IONS',),
+        'vc-md': _default_namelists + ('IONS', 'CELL'),
+        'vc-relax': _default_namelists + ('IONS', 'CELL'),
     }
 
     # Keywords that cannot be set by the user but will be set by the plugin
