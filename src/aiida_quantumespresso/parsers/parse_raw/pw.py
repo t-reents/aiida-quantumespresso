@@ -328,6 +328,9 @@ def parse_stdout(stdout, input_parameters, parser_options=None, parsed_xml=None,
     # Determine whether the input switched on an electric field
     lelfield = input_parameters.get('CONTROL', {}).get('lelfield', False)
 
+    # Determine whether SIRIUS is used
+    uses_sirius = 'SIRIUS' in ' '.join(data_lines[:50])
+
     # Find some useful quantities.
     if not parsed_xml.get('number_of_bands', None):
         try:
@@ -513,11 +516,14 @@ def parse_stdout(stdout, input_parameters, parser_options=None, parsed_xml=None,
     # (cell, initial positions, kpoints, ...) and I skip them.
     # In case, parse for them before this point.
     # Put everything in a trajectory_data dictionary
-    relax_steps = stdout.split('Self-consistent Calculation')[1:]
+    if uses_sirius:
+        relax_steps = stdout.split('* running SCF ground state *')[1:]
+    else:
+        relax_steps = stdout.split('Self-consistent Calculation')[1:]
+
     relax_steps = [i.split('\n') for i in relax_steps]
 
     # now I create a bunch of arrays for every step.
-
     for data_step in relax_steps:
         trajectory_frame = {}
 
@@ -677,9 +683,8 @@ def parse_stdout(stdout, input_parameters, parser_options=None, parsed_xml=None,
                     pass
 
             # grep energy and possibly, magnetization
-            elif '!' in line:
+            elif re.search(r'^\s*!\s+total energy\s*', line, re.IGNORECASE):
                 try:
-
                     En = float(line.split('=')[1].split('Ry')[0]) * CONSTANTS.ry_to_ev
 
                     # Up till v6.5, the line after total energy would be the Harris-Foulkes estimate, followed by the
@@ -876,7 +881,11 @@ def parse_stdout(stdout, input_parameters, parser_options=None, parsed_xml=None,
                 trajectory_data.setdefault('ionic_dipole_cartesian_axes', []).append(id_axes)
 
     # check consistency of scf_accuracy and scf_iterations
-    if 'scf_accuracy' in trajectory_data:
+
+    # we skip the skip is SIRIUS is used, as SIRIUS does not print the scf_accuracy
+    # for all scf steps per default, only at the end of each ionic step. Therefore,
+    # the lenghts will typically not match
+    if 'scf_accuracy' in trajectory_data and not uses_sirius:
         if 'scf_iterations' in trajectory_data:
             if len(trajectory_data['scf_accuracy']) != sum(trajectory_data['scf_iterations']):
                 logs.warning.append(
