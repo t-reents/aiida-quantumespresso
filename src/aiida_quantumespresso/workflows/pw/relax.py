@@ -9,6 +9,7 @@ from aiida_quantumespresso.calculations.functions.create_kpoints_from_distance i
 from aiida_quantumespresso.calculations.pw import PwCalculation
 from aiida_quantumespresso.common.types import RelaxType
 from aiida_quantumespresso.utils.mapping import prepare_process_inputs
+from aiida_quantumespresso.utils.validation.trajectory import verify_convergence_stress
 from aiida_quantumespresso.workflows.pw.base import PwBaseWorkChain
 
 from ..protocols.utils import ProtocolMixin
@@ -45,19 +46,16 @@ class PwRelaxWorkChain(ProtocolMixin, WorkChain):
             'meta_convergence',
             valid_type=orm.Bool,
             default=lambda: orm.Bool(True),
-            help='If `True` the workchain will perform a meta-convergence on the cell volume.',
+            help=(
+                'If `True` the workchain will perform a meta-convergence, checking for Pulay stresses and k-point mesh'
+                ' density after each relaxation.'
+            ),
         )
         spec.input(
             'max_meta_convergence_iterations',
             valid_type=orm.Int,
             default=lambda: orm.Int(5),
             help='The maximum number of variable cell relax iterations in the meta convergence cycle.',
-        )
-        spec.input(
-            'volume_convergence',
-            valid_type=orm.Float,
-            default=lambda: orm.Float(0.01),
-            help='The volume difference threshold between two consecutive meta convergence iterations.',
         )
         spec.input(
             'clean_workdir',
@@ -158,7 +156,7 @@ class PwRelaxWorkChain(ProtocolMixin, WorkChain):
 
             if relax_type in (RelaxType.VOLUME, RelaxType.SHAPE, RelaxType.CELL):
                 namespace.pw.settings = orm.Dict(
-                    PwRelaxWorkChain._fix_atomic_positions(structure, base_relax.pw.settings)
+                    PwRelaxWorkChain._fix_atomic_positions(structure, namespace.pw.settings)
                 )
 
             if relax_type is RelaxType.NONE:
@@ -248,8 +246,11 @@ class PwRelaxWorkChain(ProtocolMixin, WorkChain):
         """Inspect the result of the initial relax `PwBaseWorkChain`."""
         workchain = self.ctx.base_init_relax_workchain
 
-        if not workchain.is_finished_ok:
-            self.report(f'final scf PwBaseWorkChain failed with exit status {workchain.exit_status}')
+        # The following list of `PwBaseWorkChain` exit status should not interrupt the work chain
+        acceptable_statuses = ['ERROR_IONIC_CONVERGENCE_REACHED_EXCEPT_IN_FINAL_SCF']
+
+        if workchain.is_failed and workchain.exit_status not in PwBaseWorkChain.get_exit_statuses(acceptable_statuses):
+            self.report(f'initial relax PwBaseWorkChain failed with exit status {workchain.exit_status}')
             return self.exit_codes.ERROR_SUB_PROCESS_FAILED_INIT_RELAX
 
         self.ctx.current_structure = workchain.outputs.output_structure
@@ -286,9 +287,21 @@ class PwRelaxWorkChain(ProtocolMixin, WorkChain):
 
         base_relax_workchain = self.ctx.base_relax_workchains[-1]
 
-        # If the last work chain still found Pulay stresses in the final SCF, continue
-        pulay_exit_status = PwCalculation.exit_codes.ERROR_IONIC_CONVERGENCE_REACHED_EXCEPT_IN_FINAL_SCF.status
-        if base_relax_workchain.exit_status == pulay_exit_status:
+        if (
+            base_relax_workchain.exit_status
+            == PwCalculation.exit_codes.ERROR_IONIC_CONVERGENCE_REACHED_EXCEPT_IN_FINAL_SCF.status
+        ):
+            # Check whether the pressure overshoot is within a 10% tolerance of the threshold
+            if verify_convergence_stress(
+                trajectory=base_relax_workchain.outputs.output_trajectory,
+                threshold=self.ctx.relax_inputs.pw.parameters.get('CELL', {}).get('press_conv_thr', 0.5) * 1.1,
+                reference_pressure=self.ctx.relax_inputs.pw.parameters.get('CELL', {}).get('press', 0.0),
+            ):
+                self.report(
+                    'Final SCF pressure exceeded but within 10% tolerance of threshold, considering structure converged.'
+                )
+                return False
+
             self.report('Pulay stresses still present, running another geometry optimization.')
             return True
 

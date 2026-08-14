@@ -40,13 +40,10 @@ topics/workflow_logic
 :caption: Reference
 reference/calculations/index
 reference/workflows/index
+reference/monitors/index
 reference/cli/index
-```
-
-```{toctree}
-:hidden: true
-
-developer
+reference/developer
+reference/migration
 ```
 
 # AiiDA Quantum ESPRESSO

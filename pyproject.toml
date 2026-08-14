@@ -23,7 +23,7 @@ classifiers = [
 keywords = ['aiida', 'workflows']
 requires-python = '>=3.10'
 dependencies = [
-    'aiida_core[atomic_tools]~=2.3',
+    'aiida_core[atomic_tools]~=2.8',
     'aiida-pseudo>=1.7.2,<2',
     'click~=8.0',
     'importlib_resources',
@@ -85,6 +85,9 @@ aiida-quantumespresso = 'aiida_quantumespresso.cli:cmd_root'
 
 [project.entry-points.'aiida.tools.calculations']
 'quantumespresso.pw' = 'aiida_quantumespresso.tools.calculations.pw:PwCalculationTools'
+
+[project.entry-points.'aiida.calculations.monitors']
+'quantumespresso.accuracy_stuck' = 'aiida_quantumespresso.tools.monitors.accuracy_stuck:monitor'
 
 [project.entry-points.'aiida.tools.data.orbitals']
 'spinorbithydrogen' = 'aiida_quantumespresso.tools.data.orbital.spinorbithydrogen:SpinorbitHydrogenOrbital'

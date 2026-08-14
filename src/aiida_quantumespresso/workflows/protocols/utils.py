@@ -1,14 +1,14 @@
 """Utilities to manipulate the workflow input protocols."""
 
 import copy
+import inspect
 import pathlib
 import warnings
 from typing import Optional, Union
 
 import yaml
-from aiida.common.warnings import AiidaDeprecationWarning
 from aiida.orm import StructureData
-from aiida_pseudo.groups.family import PseudoPotentialFamily
+from aiida.engine import WorkChain
 from plumpy import PortNamespace
 
 from aiida_quantumespresso.common.types import SpinType
@@ -100,6 +100,7 @@ class ProtocolMixin:
             'core.slurm',
             'core.pbspro',
             'core.torque',
+            'hyperqueue',
         ):
             new_options.setdefault('resources', {}).setdefault('num_machines', 1)
         if scheduler_type in ('core.sge',):
@@ -130,13 +131,42 @@ class ProtocolMixin:
         Recursively checks the `overrides` dictionary against the input port namespace of the work chain, extended
         with protocol inputs, and emits warnings for any unrecognised keys.
         """
+        # Avoid duplicate warnings when calling `get_builder_from_protocol` within another `get_builder_from_protocol`
+        try:
+            caller_frame = inspect.stack(context=0)[3]  # Check the frame where `get_builder_from_protocol` is called
+            caller_class = caller_frame.frame.f_locals.get('cls')
+            # Skip the validation when
+            if (
+                caller_frame.function == 'get_builder_from_protocol'  # It is a parent `get_builder_from_protocol` call
+                and caller_class not in (None, cls)  # The caller is a different class
+                and issubclass(caller_class, WorkChain)  # The caller is a WorkChain
+            ):
+                return
+        except (IndexError, TypeError):
+            pass
+
+        # Sentinel key marking whether a namespace-dict below accepts arbitrary keys beyond its declared
+        # children (e.g. the dynamic ``monitors`` namespace). An `object()` is used rather than a string
+        # so it can never collide with an actual port or override name.
+        dynamic_marker = object()
 
         def port_namespace_to_dict(namespace: PortNamespace):
-            """Recursively convert a PortNamespace into a nested dict structure."""
-            return {
+            """Recursively convert a PortNamespace into a nested dict structure.
+
+            Each resulting dict carries a `dynamic_marker` entry recording whether the namespace is
+            genuinely open-ended (dynamic with no statically declared children, e.g. ``monitors`` or
+            ``pseudos``), so `recursive_key_check` can skip validating keys nested under it. Many
+            namespaces (e.g. `pw`, from ``expose_inputs``) are also `dynamic` for unrelated internal
+            reasons despite declaring a full, fixed set of children, so `dynamic` alone is not a
+            reliable signal: only an *empty* dynamic namespace unambiguously means "arbitrary keys are
+            expected here".
+            """
+            mapping = {
                 key: port_namespace_to_dict(port) if isinstance(port, PortNamespace) else None
                 for key, port in namespace.items()
             }
+            mapping[dynamic_marker] = namespace.dynamic and not mapping
+            return mapping
 
         def recursive_key_check(inputs_mapping: dict, overrides: dict, path=''):
             """Recursively check that all the provided keys in the `overrides` are in the `inputs_mapping`."""
@@ -144,12 +174,20 @@ class ProtocolMixin:
             for key, value in overrides.items():
                 full_key = f'{path}.{key}' if path else key
                 if key not in inputs_mapping:
-                    warnings.warn(f'Found unrecognised key in overrides: {full_key}')
+                    if not inputs_mapping.get(dynamic_marker, False):
+                        warnings.warn(f'Found unrecognised key in overrides: {full_key}')
                     continue
                 if isinstance(value, dict) and isinstance(inputs_mapping.get(key), dict):
                     recursive_key_check(inputs_mapping[key], value, full_key)
 
-        inputs_mapping = recursive_merge(cls.get_protocol_inputs(), port_namespace_to_dict(cls.spec().inputs))
+        meta_inputs_schema = cls._load_protocol_file().get('meta_inputs_schema')
+
+        if meta_inputs_schema is None:
+            return  # We cannot validate the overrides if we don't understand the full protocol schema
+
+        # Full protocol schema = meta inputs + process inputs
+        inputs_mapping = recursive_merge(meta_inputs_schema, port_namespace_to_dict(cls.spec().inputs))
+
         recursive_key_check(inputs_mapping, overrides)
 
 
@@ -295,59 +333,3 @@ def get_magnetization(
             magnetization['angle2'][kind.name] = 0.0
 
     return magnetization
-
-
-def get_starting_magnetization(
-    structure: StructureData,
-    pseudo_family: PseudoPotentialFamily,
-    initial_magnetic_moments: Optional[dict] = None,
-) -> dict:
-    """Return the dictionary with starting magnetization for each kind in the structure.
-
-    :param structure: the structure.
-    :param pseudo_family: pseudopotential family.
-    :param initial_magnetic_moments: dictionary mapping each kind in the structure to its magnetic moment.
-    :returns: dictionary of starting magnetizations.
-    """
-    warnings.warn(
-        '`get_starting_magnetization` is deprecated, use `get_magnetization` instead.',
-        AiidaDeprecationWarning,
-    )
-
-    if initial_magnetic_moments is not None:
-        nkinds = len(structure.kinds)
-
-        if sorted(initial_magnetic_moments.keys()) != sorted(structure.get_kind_names()):
-            raise ValueError(f'`initial_magnetic_moments` needs one value for each of the {nkinds} kinds.')
-
-        return {
-            kind.name: initial_magnetic_moments[kind.name] / pseudo_family.get_pseudo(element=kind.symbol).z_valence
-            for kind in structure.kinds
-        }
-
-    starting_magnetization = {}
-    try:
-        structure.has_magmom()
-    except AttributeError:
-        # Normal StructureData, no magmom in structure
-        magnetic_parameters = get_magnetization_parameters()
-
-        for kind in structure.kinds:
-            magnetic_moment = magnetic_parameters[kind.symbol]['magmom']
-
-            if magnetic_moment == 0:
-                magnetization = magnetic_parameters['default_magnetization']
-            else:
-                z_valence = pseudo_family.get_pseudo(element=kind.symbol).z_valence
-                magnetization = magnetic_moment / float(z_valence)
-
-            starting_magnetization[kind.name] = magnetization
-    else:
-        # MagneticStructureData, currently implemented in aiida_wannier90_workflows.
-        # Read magmom from structure<MagneticStructureData>
-        collinear = structure.is_collin_mag()
-        for kind in structure.kinds:
-            magmom = kind.get_magmom_coord()[0] if collinear else kind.get_magmom_coord(coord='cartesian')[2]
-            starting_magnetization[kind.name] = magmom / pseudo_family.get_pseudo(element=kind.symbol).z_valence
-
-    return starting_magnetization

@@ -1,6 +1,6 @@
 """Tests for the ``PwBaseWorkChain.get_builder_from_protocol`` method."""
 
-from contextlib import nullcontext
+import warnings
 
 import pytest
 from aiida.engine import ProcessBuilder
@@ -108,6 +108,27 @@ def test_pbc_assume_isolated(fixture_code, generate_structure, struc_name, assum
 
     builder = PwBaseWorkChain.get_builder_from_protocol(code, structure)
     assert builder.pw.parameters['SYSTEM'].get('assume_isolated', None) == assume_isolated
+
+
+@pytest.mark.parametrize('struc_name', ['2D-xy-arsenic', '1D-x-carbon', '1D-y-carbon', '1D-z-carbon'])
+def test_pbc_aperiodic_warning(fixture_code, generate_structure, struc_name):
+    """Test that a warning is raised for structures that are not fully periodic."""
+    code = fixture_code('quantumespresso.pw')
+    structure = generate_structure(struc_name)
+
+    with pytest.warns(UserWarning, match='This protocol was developed for fully periodic'):
+        PwBaseWorkChain.get_builder_from_protocol(code, structure)
+
+
+@pytest.mark.parametrize('pbc', [(True, False, True), (False, True, True)])
+def test_pbc_invalid_2d(fixture_code, generate_structure, pbc):
+    """Test that 2D structures that are not periodic in the x-y plane raise a ``ValueError``."""
+    code = fixture_code('quantumespresso.pw')
+    structure = generate_structure('silicon')
+    structure.pbc = pbc
+
+    with pytest.raises(ValueError, match='2D-periodic structures must be periodic in the x-y plane'):
+        PwBaseWorkChain.get_builder_from_protocol(code, structure)
 
 
 @pytest.mark.parametrize('initial_magnetic_moments', [{}, {'Si1': 1.0, 'Si2': 2.0}])
@@ -267,9 +288,14 @@ def test_parallelization_overrides(fixture_code, generate_structure):
         # CORRECT overrides for `Dict` node with incorrect keys
         # The key check should _not_ validate the inputs, that is the job of the port validator
         ({'pw': {'parameters': {'NON-EXISTENT': {'param': 1}}}}, None),
+        # CORRECT overrides for a key in a dynamic namespace with no declared children (`monitors`):
+        # its keys cannot be statically enumerated, so any key should be accepted. `pseudos` is the same
+        # shape (dynamic, no declared children) and is therefore covered by this same code path.
+        ({'pw': {'monitors': {'monitor1': {'entry_point': 'quantumespresso.accuracy_stuck'}}}}, None),
         # WRONG overrides with typo
         ({'clean_wokdir': True}, UserWarning),
-        # WRONG overrides with process input at incorrect level
+        # WRONG overrides with process input at incorrect level: `pw` is also a dynamic namespace, but
+        # (unlike `monitors`) has declared children, so an undeclared key here must still warn
         ({'pw': {'options': {}}}, UserWarning),
         # WRONG overrides with protocol input at incorrect level
         ({'pw': {'pseudo_family': 'SSSP/1.3/PBEsol/efficiency'}}, UserWarning),
@@ -278,9 +304,12 @@ def test_parallelization_overrides(fixture_code, generate_structure):
 def test_overrides_key_check(fixture_code, generate_structure, overrides, warning):
     """Test that the `get_builder_from_protocol()` method warns for erroneous keys in the `overrides`."""
 
-    context = pytest.warns(UserWarning) if warning else nullcontext()
+    context = pytest.warns(UserWarning) if warning else warnings.catch_warnings()
 
     with context:
+        if not warning:
+            warnings.simplefilter('error', UserWarning)
+
         PwBaseWorkChain.get_builder_from_protocol(
             fixture_code('quantumespresso.pw'),
             generate_structure('silicon'),
@@ -433,3 +462,28 @@ def test_default_resources(
 
     builder = PwBaseWorkChain.get_builder_from_protocol(code, structure)
     assert builder.pw.metadata.options['resources'] == expected_resources
+
+
+def test_spin_orbit_pseudo_family(fixture_code, generate_structure):
+    """Test that ``SpinType.SPIN_ORBIT`` selects the fully-relativistic pseudo family by default."""
+    code = fixture_code('quantumespresso.pw')
+    structure = generate_structure('silicon')
+
+    # No overrides at all -> FR family cutoffs
+    builder = PwBaseWorkChain.get_builder_from_protocol(code, structure, spin_type=SpinType.SPIN_ORBIT)
+    assert builder.pw.parameters['SYSTEM']['ecutwfc'] == 60.0
+    assert builder.pw.parameters['SYSTEM']['ecutrho'] == 400.0
+
+    # Overrides present but without ``pseudo_family`` -> FR family
+    builder = PwBaseWorkChain.get_builder_from_protocol(
+        code, structure, spin_type=SpinType.SPIN_ORBIT, overrides={'clean_workdir': True}
+    )
+    assert builder.pw.parameters['SYSTEM']['ecutwfc'] == 60.0
+    assert builder.pw.parameters['SYSTEM']['ecutrho'] == 400.0
+
+    # Explicit ``pseudo_family`` in overrides always wins
+    builder = PwBaseWorkChain.get_builder_from_protocol(
+        code, structure, spin_type=SpinType.SPIN_ORBIT, overrides={'pseudo_family': 'SSSP/1.3/PBEsol/efficiency'}
+    )
+    assert builder.pw.parameters['SYSTEM']['ecutwfc'] == 30.0
+    assert builder.pw.parameters['SYSTEM']['ecutrho'] == 240.0
