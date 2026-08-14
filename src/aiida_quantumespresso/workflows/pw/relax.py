@@ -199,7 +199,7 @@ class PwRelaxWorkChain(ProtocolMixin, WorkChain):
         builder.base_relax = base_relax
         builder.base_init_relax = base_init_relax
         builder.structure = structure
-        builder._update(inputs)
+        builder._merge(inputs)
 
         return builder
 

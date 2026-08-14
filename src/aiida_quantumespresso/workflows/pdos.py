@@ -391,7 +391,7 @@ class PdosWorkChain(ProtocolMixin, WorkChain):
         builder.structure = structure
         builder.scf = scf
         builder.nscf = nscf
-        builder._update(inputs)
+        builder._merge(inputs)
 
         return builder
 

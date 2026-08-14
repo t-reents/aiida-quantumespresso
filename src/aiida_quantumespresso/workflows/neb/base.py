@@ -150,7 +150,7 @@ class NebBaseWorkChain(ProtocolMixin, BaseRestartWorkChain):
             inputs['kpoints_distance'] = pw_base['kpoints_distance']
 
         builder = cls.get_builder()
-        builder._update(inputs)
+        builder._merge(inputs)
 
         return builder
 

@@ -186,7 +186,7 @@ class PwBandsWorkChain(ProtocolMixin, WorkChain):
         builder.structure = structure
         builder.scf = scf
         builder.bands = bands
-        builder._update(inputs)
+        builder._merge(inputs)
 
         return builder
 

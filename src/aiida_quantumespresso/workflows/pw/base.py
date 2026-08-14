@@ -325,7 +325,7 @@ class PwBaseWorkChain(ProtocolMixin, BaseRestartWorkChain):
             inputs.pop('kpoints', None)
 
         builder = cls.get_builder()
-        builder._update(inputs)
+        builder._merge(inputs)
 
         return builder
 

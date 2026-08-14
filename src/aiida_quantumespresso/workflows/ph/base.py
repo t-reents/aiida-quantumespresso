@@ -176,7 +176,7 @@ class PhBaseWorkChain(ProtocolMixin, BaseRestartWorkChain):
             inputs.pop('qpoints_force_parity', None)
 
         builder = cls.get_builder()
-        builder._update(inputs)
+        builder._merge(inputs)
 
         return builder
 
